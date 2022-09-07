@@ -1,66 +1,62 @@
 package com.frederico.vcd
 
-import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.ShapeDrawable
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.os.Environment
 import android.util.Log
-import android.view.GestureDetector
 import android.view.Menu
 import android.view.MenuItem
-import android.view.MotionEvent
 import android.widget.Toast
-import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
-import androidx.core.content.FileProvider
-import androidx.core.view.GestureDetectorCompat
 import com.frederico.vcd.databinding.ActivityMainBinding
+import com.github.mikephil.charting.animation.ChartAnimator
 import com.github.mikephil.charting.components.AxisBase
-import com.github.mikephil.charting.components.Description
-import com.github.mikephil.charting.data.DataSet
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
+import com.github.mikephil.charting.formatter.IFillFormatter
 import com.github.mikephil.charting.formatter.ValueFormatter
+import com.github.mikephil.charting.interfaces.dataprovider.LineDataProvider
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet
+import com.github.mikephil.charting.model.GradientColor
+import com.github.mikephil.charting.renderer.LineChartRenderer
+import com.github.mikephil.charting.charts.LineChart
+import com.github.mikephil.charting.utils.ViewPortHandler
 import java.nio.charset.Charset
-import java.security.KeyStore
-import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    val choose_colors = arrayOf(
+    private val choose_colors = arrayOf(
         Color.RED,
         Color.BLUE,
         Color.GREEN,
         Color.BLACK,
         Color.MAGENTA,
     )
-    val request_code = 112
-    var selectedFile = ""
-    var data: HashMap<String, ArrayList<Info>>? = null
-    var timePoints: HashMap<String, Array<Point>>? = null
-    val sets = ArrayList<ILineDataSet>()
+    private val request_code = 112
+    private var data: HashMap<String, ArrayList<Info>>? = null
+    private var timePoints: HashMap<String, Array<Point>>? = null
+    private val sets = ArrayList<ILineDataSet>()
 
-    val getContent = registerForActivityResult(ActivityResultContracts.GetContent()){
+    private val getContent = registerForActivityResult(ActivityResultContracts.GetContent()){
         val input = contentResolver.openInputStream(it)?.readBytes()
         val result = String(input!!, Charset.defaultCharset())
-
-        Log.println(Log.VERBOSE, "VCD-CRASH", result)
 
         data = readFile(result)
         timePoints = points(result)
     }
 
-    val selectInfo = registerForActivityResult(ActivityResultContracts.StartActivityForResult()){
+    private val selectInfo = registerForActivityResult(ActivityResultContracts.StartActivityForResult()){
         val result = it.data?.getStringExtra("result")
         if(result != null){
             val scope = result.substringBeforeLast('.')
@@ -72,24 +68,55 @@ class MainActivity : AppCompatActivity() {
             }
 
             val entries = ArrayList<Entry>()
-            timePoints!![selection!!.symbol.toString()]!!.forEach { point:Point ->
-                entries.add(Entry(point.time.toFloat(), point.value.toFloat() - sets.size*2))
-            }
-            val lineDataSet = LineDataSet(entries, result)
-            lineDataSet.color = choose_colors.random()
-            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R){
-                if(lineDataSet.color == Color.BLACK && this.resources.configuration.isNightModeActive){
-                    lineDataSet.color = Color.WHITE
+            if(selection!!.size > 1){
+                var lastX = -1
+                timePoints!![selection!!.symbol.toString()]!!.forEach { point: Point ->
+                    entries.add(Entry(point.time.toFloat(), 1f - sets.size * 2))
+
+                    if(lastX != point.time){
+                        entries.add(Entry(point.time.toFloat(), 0f - sets.size*2, point.value))
+                        lastX = point.time
+                        entries.add((entries[entries.size-2]))
+                    }
+                }
+            }else {
+                timePoints!![selection!!.symbol.toString()]!!.forEach { point: Point ->
+                    entries.add(Entry(point.time.toFloat(), point.value.toFloat() - sets.size * 2))
                 }
             }
-            lineDataSet.setDrawCircles(false)
-            lineDataSet.lineWidth = 2f
+            val lineDataSet = LineDataSet(entries, result)
+
+            lineDataSet.apply {
+                color = choose_colors.random()
+                if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R){
+                    if(color == Color.BLACK && resources.configuration.isNightModeActive){
+                        color = Color.WHITE
+                    }
+                }
+                setDrawCircles(false)
+                lineWidth = 2f
+
+                setDrawFilled(true)
+                fillColor = color
+                fillFormatter =
+                    IFillFormatter { dataSet, _ -> dataSet?.yMin ?: 0f }
+
+            }
 
             binding.chart.axisLeft.axisMinimum = (sets.size*(-2) - 1).toFloat()
 
             sets.add(lineDataSet)
 
+            binding.chart.apply{
+                renderer = ComplexLineChartRenderer(this, animator, viewPortHandler) /*{
+                    Log.println(Log.VERBOSE, "CHART_DRAW", it.toString())
+                }*/
+            }
+
             binding.chart.data = LineData(sets)
+
+            binding.chart.xAxis.axisMaximum += 1
+            binding.chart.xAxis.resetAxisMaximum() //eu sei que parece que não faz sentido mas se inverter nao funciona
             binding.chart.invalidate()
         }
     }
@@ -109,29 +136,33 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
 
-        binding.chart.setDrawGridBackground(false)
-        //binding.chart.xAxis.setDrawGridLines(false)
-        binding.chart.xAxis.valueFormatter = object : ValueFormatter() {
-            override fun getAxisLabel(value: Float, axis: AxisBase?): String {
-                return if(value == value.toInt().toFloat()) value.toInt().toString()
-                else ""
+        binding.chart.apply {
+            setDrawGridBackground(false)
+            //binding.chart.xAxis.setDrawGridLines(false)
+            xAxis.valueFormatter = object : ValueFormatter() {
+                override fun getAxisLabel(value: Float, axis: AxisBase?): String {
+                    return if(value == value.toInt().toFloat()) value.toInt().toString()
+                    else ""
+                }
             }
-        }
-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R  ){
-            if(this.resources.configuration.isNightModeActive) {
-                binding.chart.xAxis.textColor = Color.WHITE
-                binding.chart.legend.textColor = Color.WHITE
+            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R  ){
+                if(this.resources.configuration.isNightModeActive) {
+                        xAxis.textColor = Color.WHITE
+                        legend.textColor = Color.WHITE
+                }
             }
-        }
-        binding.chart.axisLeft.setDrawGridLines(false)
-        binding.chart.axisLeft.setDrawLabels(false)
-        binding.chart.axisLeft.axisMaximum = 2f
-        binding.chart.axisLeft.axisMinimum = -1f
-        binding.chart.axisRight.isEnabled = false
-        binding.chart.setMaxVisibleValueCount(0)
-        binding.chart.description.isEnabled = false
-        binding.chart.invalidate()
 
+            axisLeft.apply {
+                setDrawGridLines(false)
+                setDrawLabels(false)
+                axisMaximum = 2f
+                axisMinimum = -1f
+            }
+            axisRight.isEnabled = false
+            setMaxVisibleValueCount(0)
+            description.isEnabled = false
+            invalidate()
+        }
     }
 
     /**
@@ -159,7 +190,7 @@ class MainActivity : AppCompatActivity() {
             R.id.add_signal -> {
                 if(data == null) Toast.makeText(this, "Select a VCD before adding signals", Toast.LENGTH_SHORT).show()
                 else{
-                    var scopes = ArrayList<String>()
+                    val scopes = ArrayList<String>()
                     data!!.values.forEach {
                         it.forEach {
                             scopes.add(it.scope)

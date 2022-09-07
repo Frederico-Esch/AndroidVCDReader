@@ -171,9 +171,19 @@ Java_com_frederico_vcd_MainActivity_points(JNIEnv *env, jobject thiz, jstring fi
             }
         }
         else if(token.length() > 1) {
-            char symbol = token[token.length()-1];
-            token = token.substr(0, token.length()-1);
-            int value = std::stoi(token);
+
+            char symbol;
+            int value;
+            if(token[0] == 'b'){
+                token = token.substr(1);
+                if(token.empty()) throw "NAN value as wave record";
+                value = std::stoi(token, nullptr, 2);
+                file >> symbol;
+            }else{
+                symbol = token[token.length()-1];
+                token = token.substr(0, token.length()-1);
+                value = std::stoi(token);
+            }
 
             mapping[symbol] = value;
             if(points.find(symbol) == points.end()) points[symbol] = {};
@@ -194,7 +204,6 @@ Java_com_frederico_vcd_MainActivity_points(JNIEnv *env, jobject thiz, jstring fi
         jobjectArray point_array = env->NewObjectArray(values.size(), point_class, nullptr);
 
         int index = 0;
-        __android_log_print(ANDROID_LOG_VERBOSE, "VCD-CRASH","%d", values.size());
 
         for (auto& point : values){
             jobject instance = env->NewObject(point_class, point_init, point.time, point.value);

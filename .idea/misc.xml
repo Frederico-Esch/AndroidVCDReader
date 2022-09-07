@@ -7,6 +7,10 @@
         <entry key="..\:/Android/VCD/app/src/main/res/layout/activity_main.xml" value="0.2712962962962963" />
         <entry key="..\:/Android/VCD/app/src/main/res/layout/signal_item.xml" value="0.278125" />
         <entry key="..\:/Android/VCD/app/src/main/res/menu/toolbar_menu.xml" value="0.20989583333333334" />
+        <entry key="..\:/DEV/VCD/app/src/main/res/drawable/chart_visualization.xml" value="0.1685185185185185" />
+        <entry key="..\:/DEV/VCD/app/src/main/res/layout/activity_choose_signal.xml" value="0.16458333333333333" />
+        <entry key="..\:/DEV/VCD/app/src/main/res/layout/activity_main.xml" value="0.16458333333333333" />
+        <entry key="..\:/DEV/VCD/app/src/main/res/layout/char_visualization.xml" value="0.16458333333333333" />
       </map>
     </option>
   </component>
