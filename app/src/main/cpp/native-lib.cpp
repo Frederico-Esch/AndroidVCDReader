@@ -179,6 +179,12 @@ Java_com_frederico_vcd_MainActivity_points(JNIEnv *env, jobject thiz, jstring fi
                 if(token.empty()) throw "NAN value as wave record";
                 value = std::stoi(token, nullptr, 2);
                 file >> symbol;
+            }else if (token[0] == 'x'){ //UNDEFINED VALUE FOR VARIABLE
+                value = -1;
+                symbol = token[1];
+            }else if (token[0] == 'z'){ // TRISTATE
+                value = -2;
+                symbol = token[1];
             }else{
                 symbol = token[token.length()-1];
                 token = token.substr(0, token.length()-1);

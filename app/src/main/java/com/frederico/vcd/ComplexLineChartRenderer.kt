@@ -48,11 +48,15 @@ class ComplexLineChartRenderer(
                     lastEntry = x
                     continue
                 }
+
+                val content : String = if (entry.data is String) entry.data as String else (entry.data as Int).toString(2)
+                val heightPos = (positions[j-1] + y)/2 - if(entry.data is String) 20 else 0
+                if (content == "END") continue
                 drawValue(
                     c,
-                    (entry.data as Int).toString(2),//formatter.getPointLabel(entry),
+                    content,//formatter.getPointLabel(entry),
                     (lastEntry + x)/2,
-                    (positions[j-1] + y)/2,
+                    heightPos,
                     dataSet.getValueTextColor(j / 2)
                 )
                 lastEntry = x

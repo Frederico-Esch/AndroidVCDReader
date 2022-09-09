@@ -80,8 +80,17 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             }else {
-                timePoints!![selection!!.symbol.toString()]!!.forEach { point: Point ->
-                    entries.add(Entry(point.time.toFloat(), point.value.toFloat() - sets.size * 2))
+                var lastDataHadData = false
+                timePoints!![selection.symbol.toString()]!!.forEach { point: Point ->
+
+                    if(lastDataHadData) entries.add(Entry(point.time.toFloat(), 0f - sets.size * 2, "END"))
+
+                    val entry =
+                        if(point.value < 0) Entry(point.time.toFloat(), 1f - sets.size * 2, if(selection.type == "wire")  "TRISTATE" else "UNDEFINED")
+                        else  Entry(point.time.toFloat(), point.value.toFloat() - sets.size * 2)
+
+                    entries.add(entry)
+                    lastDataHadData = (entry.data != null)
                 }
             }
             val lineDataSet = LineDataSet(entries, result)
@@ -91,6 +100,7 @@ class MainActivity : AppCompatActivity() {
                 if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R){
                     if(color == Color.BLACK && resources.configuration.isNightModeActive){
                         color = Color.WHITE
+                        valueTextColor = Color.WHITE
                     }
                 }
                 setDrawCircles(false)
@@ -115,7 +125,7 @@ class MainActivity : AppCompatActivity() {
 
             binding.chart.data = LineData(sets)
 
-            binding.chart.xAxis.axisMaximum += 1
+            binding.chart.xAxis.axisMaximum += .01f
             binding.chart.xAxis.resetAxisMaximum() //eu sei que parece que não faz sentido mas se inverter nao funciona
             binding.chart.invalidate()
         }
