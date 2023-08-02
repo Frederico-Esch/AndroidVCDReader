@@ -80,17 +80,29 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             }else {
-                var lastDataHadData = false
+                var lastDataHadData = ""
                 timePoints!![selection.symbol.toString()]!!.forEach { point: Point ->
 
-                    if(lastDataHadData) entries.add(Entry(point.time.toFloat(), 0f - sets.size * 2, "END"))
+                    when(lastDataHadData) {
+                        "XXXXX" -> {
+                            entries.add(Entry(point.time.toFloat(), 1f - sets.size * 2, "END"))
+                            entries.add(Entry(point.time.toFloat(), 0f - sets.size * 2 ))
+                        }
+                        "ZZZZZ" -> {
+                            entries.add(Entry(point.time.toFloat(), .5f - sets.size * 2, "END"))
+                            entries.add(Entry(point.time.toFloat(), 0f - sets.size * 2 ))
+                        }
+                    }
 
                     val entry =
-                        if(point.value < 0) Entry(point.time.toFloat(), 1f - sets.size * 2, if(selection.type == "wire")  "TRISTATE" else "UNDEFINED")
-                        else  Entry(point.time.toFloat(), point.value.toFloat() - sets.size * 2)
+                        when (point.value) {
+                            -1 -> Entry(point.time.toFloat(), 1f - sets.size * 2,  "XXXXX") //if(selection.type == "wire")  "TRISTATE" else
+                            -2 -> Entry(point.time.toFloat(), 0.5f - sets.size * 2,  "ZZZZZ")
+                            else -> Entry(point.time.toFloat(), point.value.toFloat() - sets.size * 2)
+                        }
 
                     entries.add(entry)
-                    lastDataHadData = (entry.data != null)
+                    lastDataHadData = if (entry.data != null) entry.data.toString() else ""
                 }
             }
             val lineDataSet = LineDataSet(entries, result)
